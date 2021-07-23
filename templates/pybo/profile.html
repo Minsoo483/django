@@ -6,16 +6,19 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile</title>
-    <link rel="stylesheet" href="{% static 'pybo/style.css' %}">
+    <link rel="stylesheet" href="{% static 'pybo/style.css' %}"
 </head>
 <body>
     <div id = "container">
         <header>
             <nav>
+                <div id="logo">
+                    <a href="{% url 'pybo:index' %}"><h2>PyWeb</h2></a>
+                </div>
                 <ul id="main-nav">
-                    <li><a href="#">나는?(who)</a></li>
-                    <li><a href="#">경력(Job)</a></li>
-                    <li><a href="#">기술(skill)</a></li>
+                    <li><a href="#who">나는?(who)</a></li>
+                    <li><a href="#job">경력(Job)</a></li>
+                    <li><a href="#skill">기술(skill)</a></li>
                 </ul>
             </nav>
         </header>
