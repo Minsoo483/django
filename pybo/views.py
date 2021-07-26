@@ -1,11 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from .models import Question, Answer
 from django.utils import timezone
-from .forms import QuestionForm, AnswerForm
+from .forms import QuestionForm, AnswerForm, CommentForm
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Count
 
 
 def index(request):
@@ -19,11 +19,21 @@ def profile(request):
 def board(request):
     # 질문 목록
     # 127.0.0.1:8000/pybo/board/?page=1
-    page = request.GET.get('page', '1')
-    kw = request.GET.get('kw', '')
+    page = request.GET.get('page', '1')  # 페이지
+    kw = request.GET.get('kw', '')  # 검색어
+    so = request.GET.get('so', 'recent')  # 정렬 기준
 
-    # 조회
-    question_list = Question.objects.order_by('-create_date')
+
+    # 정렬
+    if so == 'recommend':
+        question_list = Question.objects.annotate( # num_voter : 임시 필드
+            num_voter = Count('voter')).order_by('-num_voter', '-create_date')
+    elif so == 'popular':
+        question_list = Question.objects.annotate(
+            num_answer = Count('answer')).order_by('-num_answer', '-create_date')
+    else:  # recent
+        question_list = Question.objects.order_by('-create_date')
+
     if kw:
         question_list = question_list.filter(
             Q(subject__icontains=kw) |                      # 제목 검색
@@ -37,7 +47,7 @@ def board(request):
     paginator = Paginator(question_list, 10)
     page_obj = paginator.get_page(page)
 
-    context = {'question_list': page_obj, 'page': page, 'kw': kw}
+    context = {'question_list': page_obj, 'page': page, 'kw': kw, 'so': so}
     return render(request, 'pybo/question_list.html', context)
 
 
@@ -151,6 +161,36 @@ def answer_delete(request, answer_id):
     else:
         answer.delete()
     return redirect('pybo:detail', question_id=answer.question.id)
+
+
+@login_required(login_url="common:login")
+def vote_question(request, question_id):
+    # 질문 추천
+    question = get_object_or_404(Question, pk=question_id)
+    if request.user == question.author:
+        messages.error(request, '본인이 작선한 글은 추천할 수 없습니다.')
+    else:
+        question.voter.add(request.user)
+    return redirect('pybo:detail', question_id=question.id)
+
+
+@login_required(login_url='common:login')
+def comment_create_question(request, question_id):
+    # 질문 댓글 등록
+    question = get_object_or_404(Question, pk=question_id)
+    if request.method == "POST":
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.author = request.user   # 댓글 글쓴이 = 로그인된 회원
+            comment.create_date = timezone.now()    # 작성일
+            comment.question = question     #댓글
+            comment.save()
+            return redirect('pybo:detail', question_id=question.id)
+    else:
+        form = CommentForm()
+    context = {'form': form}
+    return render(request, 'pybo/comment_form.html', context)
 
 
 def jqtest(request):
